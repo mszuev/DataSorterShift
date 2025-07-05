@@ -2,19 +2,22 @@ package ru.mzuev.datasorter;
 
 import ru.mzuev.datasorter.io.DataWriter;
 import ru.mzuev.datasorter.processor.TypeDetector;
+import ru.mzuev.datasorter.stats.StatisticsCollector;
+import ru.mzuev.datasorter.stats.StatMode;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Main {
+public class DataSorterApp {
+
     public static void main(String[] args) {
         AppSettings settings = new AppSettings();
         List<String> inputFiles = new ArrayList<>();
+        StatisticsCollector statsCollector = new StatisticsCollector();
 
-        parseArguments(args, settings, inputFiles);
+        parseArguments(args, settings, inputFiles, statsCollector);
 
         if (inputFiles.isEmpty()) {
             printUsage();
@@ -36,15 +39,31 @@ public class Main {
                 )
         ) {
             for (String filename : inputFiles) {
-                processFile(filename, intWriter, floatWriter, stringWriter);
+                processFile(
+                        filename,
+                        intWriter,
+                        floatWriter,
+                        stringWriter,
+                        statsCollector
+                );
             }
+
+            // Вывод статистики
+            StatMode mode = statsCollector.getStatMode();
+            if (mode == StatMode.SHORT) {
+                statsCollector.printShortStatistics();
+            } else if (mode == StatMode.FULL) {
+                statsCollector.printFullStatistics();
+            }
+
             System.out.println("Processing completed successfully");
-        } catch (IOException e) {
-            System.err.println("Error: " + e.getMessage());
         }
     }
 
-    private static void parseArguments(String[] args, AppSettings settings, List<String> inputFiles) {
+    private static void parseArguments(String[] args,
+                                       AppSettings settings,
+                                       List<String> inputFiles,
+                                       StatisticsCollector statsCollector) {
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
                 case "-o":
@@ -59,6 +78,12 @@ public class Main {
                     break;
                 case "-a":
                     settings.setAppendMode(true);
+                    break;
+                case "-s":
+                    statsCollector.setStatMode(StatMode.SHORT);
+                    break;
+                case "-f":
+                    statsCollector.setStatMode(StatMode.FULL);
                     break;
                 default:
                     if (!args[i].startsWith("-")) {
@@ -76,33 +101,34 @@ public class Main {
         System.out.println("  -o <outputPath>   Set output directory");
         System.out.println("  -p <prefix>       Set prefix for output files");
         System.out.println("  -a                Append to existing files");
+        System.out.println("  -s                Show short statistics");
+        System.out.println("  -f                Show full statistics");
     }
 
     private static void processFile(String filename,
                                     DataWriter intWriter,
                                     DataWriter floatWriter,
-                                    DataWriter stringWriter)
-            throws IOException {
-
+                                    DataWriter stringWriter,
+                                    StatisticsCollector statsCollector) {
         try (BufferedReader reader = new BufferedReader(new FileReader(filename))) {
             String line;
-            int lineCount = 0;
 
             while ((line = reader.readLine()) != null) {
-                lineCount++;
                 if (line.trim().isEmpty()) continue;
 
                 if (TypeDetector.isInteger(line)) {
                     intWriter.write(line);
+                    statsCollector.addInteger(line);
                 } else if (TypeDetector.isDecimal(line)) {
                     floatWriter.write(line);
+                    statsCollector.addFloat(line);
                 } else {
                     stringWriter.write(line);
+                    statsCollector.addString(line);
                 }
             }
-            System.out.println("Processed " + lineCount + " lines from " + filename);
-        } catch (IOException e) {
-            System.err.println("Error reading file " + filename + ": " + e.getMessage());
+        } catch (Exception e) {
+            System.err.println("Error processing file " + filename + ": " + e.getMessage());
         }
     }
 }
