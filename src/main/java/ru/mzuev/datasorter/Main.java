@@ -6,26 +6,76 @@ import ru.mzuev.datasorter.processor.TypeDetector;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Main {
     public static void main(String[] args) {
-        if (args.length == 0) {
-            System.out.println("Usage: java -jar DataSorterShift.jar file1 [file2 ...]");
+        AppSettings settings = new AppSettings();
+        List<String> inputFiles = new ArrayList<>();
+
+        parseArguments(args, settings, inputFiles);
+
+        if (inputFiles.isEmpty()) {
+            printUsage();
             return;
         }
 
         try (
-                DataWriter intWriter = new DataWriter("integers.txt");
-                DataWriter floatWriter = new DataWriter("floats.txt");
-                DataWriter stringWriter = new DataWriter("strings.txt")
+                DataWriter intWriter = new DataWriter(
+                        settings.getFullPath("integers.txt").toString(),
+                        settings.isAppendMode()
+                );
+                DataWriter floatWriter = new DataWriter(
+                        settings.getFullPath("floats.txt").toString(),
+                        settings.isAppendMode()
+                );
+                DataWriter stringWriter = new DataWriter(
+                        settings.getFullPath("strings.txt").toString(),
+                        settings.isAppendMode()
+                )
         ) {
-            for (String filename : args) {
+            for (String filename : inputFiles) {
                 processFile(filename, intWriter, floatWriter, stringWriter);
             }
             System.out.println("Processing completed successfully");
         } catch (IOException e) {
             System.err.println("Error: " + e.getMessage());
         }
+    }
+
+    private static void parseArguments(String[] args, AppSettings settings, List<String> inputFiles) {
+        for (int i = 0; i < args.length; i++) {
+            switch (args[i]) {
+                case "-o":
+                    if (i + 1 < args.length) {
+                        settings.setOutputPath(args[++i]);
+                    }
+                    break;
+                case "-p":
+                    if (i + 1 < args.length) {
+                        settings.setFilePrefix(args[++i]);
+                    }
+                    break;
+                case "-a":
+                    settings.setAppendMode(true);
+                    break;
+                default:
+                    if (!args[i].startsWith("-")) {
+                        inputFiles.add(args[i]);
+                    } else {
+                        System.err.println("Warning: Unknown option " + args[i]);
+                    }
+            }
+        }
+    }
+
+    private static void printUsage() {
+        System.out.println("Usage: java -jar DataSorterShift.jar [options] file1 [file2 ...]");
+        System.out.println("Options:");
+        System.out.println("  -o <outputPath>   Set output directory");
+        System.out.println("  -p <prefix>       Set prefix for output files");
+        System.out.println("  -a                Append to existing files");
     }
 
     private static void processFile(String filename,

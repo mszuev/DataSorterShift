@@ -10,10 +10,12 @@ import java.nio.file.Paths;
 public class DataWriter implements AutoCloseable {
     private BufferedWriter writer;
     private final String filePath;
+    private final boolean append;
     private boolean isActive = true;
 
-    public DataWriter(String filePath) {
+    public DataWriter(String filePath, boolean append) {
         this.filePath = filePath;
+        this.append = append;
     }
 
     public void write(String data) throws IOException {
@@ -22,7 +24,7 @@ public class DataWriter implements AutoCloseable {
         try {
             if (writer == null) {
                 createParentDirectories();
-                writer = new BufferedWriter(new FileWriter(filePath));
+                writer = new BufferedWriter(new FileWriter(filePath, append));
             }
             writer.write(data);
             writer.newLine();
