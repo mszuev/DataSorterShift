@@ -7,6 +7,7 @@ import ru.mzuev.datasorter.stats.StatMode;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -63,36 +64,28 @@ public class DataSorterApp {
     private static void parseArguments(String[] args,
                                        AppSettings settings,
                                        List<String> inputFiles,
-                                       StatisticsCollector statsCollector) {
+                                       StatisticsCollector stats) {
         for (int i = 0; i < args.length; i++) {
-            switch (args[i]) {
-                case "-o":
-                    if (i + 1 < args.length) {
-                        settings.setOutputPath(args[++i]);
-                    }
-                    break;
-                case "-p":
-                    if (i + 1 < args.length) {
-                        settings.setFilePrefix(args[++i]);
-                    }
-                    break;
-                case "-a":
-                    settings.setAppendMode(true);
-                    break;
-                case "-s":
-                    statsCollector.setStatMode(StatMode.SHORT);
-                    break;
-                case "-f":
-                    statsCollector.setStatMode(StatMode.FULL);
-                    break;
-                default:
-                    if (!args[i].startsWith("-")) {
-                        inputFiles.add(args[i]);
+            String a = args[i];
+            switch (a) {
+                case "-o" -> settings.setOutputPath(nextArg(args, ++i));
+                case "-p" -> settings.setFilePrefix(nextArg(args, ++i));
+                case "-a" -> settings.setAppendMode(true);
+                case "-s" -> stats.setStatMode(StatMode.SHORT);
+                case "-f" -> stats.setStatMode(StatMode.FULL);
+                default -> {
+                    if (a.startsWith("-")) {
+                        System.err.println("Warning: Unknown option " + a);
                     } else {
-                        System.err.println("Warning: Unknown option " + args[i]);
+                        inputFiles.add(a);
                     }
+                }
             }
         }
+    }
+
+    private static String nextArg(String[] args, int i) {
+        return (i < args.length) ? args[i] : "";
     }
 
     private static void printUsage() {
@@ -127,8 +120,10 @@ public class DataSorterApp {
                     statsCollector.addString(line);
                 }
             }
+        } catch (IOException e) {
+            System.err.println("I/O error in " + filename + ": " + e.getMessage());
         } catch (Exception e) {
-            System.err.println("Error processing file " + filename + ": " + e.getMessage());
+            System.err.println("Unexpected error in " + filename + ": " + e);
         }
     }
 }
